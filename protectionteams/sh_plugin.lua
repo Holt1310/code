@@ -677,17 +677,22 @@ end
 
 if CLIENT then
     net.Receive("OpenModelMenu", function()
-        local faction = net.ReadUInt(32)  -- Receive the faction from the server
+        local faction = net.ReadUInt(32)
 
         local frame = vgui.Create("DFrame")
-        frame:SetSize(300, 400)
+        frame:SetSize(600, 400)  -- Increased the size for better layout
         frame:Center()
         frame:MakePopup()
         frame:SetTitle("Select Player Model")
 
         local modelList = vgui.Create("DListView", frame)
-        modelList:Dock(FILL)
+        modelList:SetSize(280, 340)
+        modelList:SetPos(10, 30)  -- Adjusted position
         modelList:AddColumn("Model")
+
+        local modelPreview = vgui.Create("DModelPanel", frame)
+        modelPreview:SetSize(280, 340)
+        modelPreview:SetPos(310, 30)  -- Adjusted position
 
         -- Different factions can have different available models
         local models = {
@@ -779,14 +784,17 @@ if CLIENT then
             },
             -- Add more factions and their respective models here
         }
-
-        -- Populate the list with models based on the leader’s faction
         for _, model in pairs(models[faction] or {}) do
             modelList:AddLine(model)
         end
 
-        modelList.OnRowSelected = function(lst, squadName, pnl)
+        modelList.OnRowSelected = function(lst, index, pnl)
             local selectedModel = pnl:GetColumnText(1)
+            modelPreview:SetModel(selectedModel)  -- Set the model to the preview panel
+
+            -- Optional: You can set the camera position, angles, etc. here for better preview
+            modelPreview:SetCamPos(Vector(50, 50, 50))
+            modelPreview:SetLookAt(Vector(0, 0, 40))
 
             net.Start("SetPTModel")
             net.WriteString(selectedModel)
@@ -794,26 +802,17 @@ if CLIENT then
 
             frame:Close()
         end
+
+        modelList.OnRowHovered = function(lst, index, pnl)
+            local hoveredModel = pnl:GetColumnText(1)
+            modelPreview:SetModel(hoveredModel)  -- Update the preview model when hovered
+
+            -- Optional: Adjust camera position, angles, etc. for better preview
+            modelPreview:SetCamPos(Vector(50, 50, 50))
+            modelPreview:SetLookAt(Vector(0, 0, 40))
+        end
     end)
 end
-
-ix.command.Add("PTMemberModel", {
-    description = "Open a menu to set a player model for a specific team member.",
-    adminOnly = false,
-    arguments = ix.type.player, 
-    OnRun = function(self, client, target)
-        if client.isTeamOwner then
-            local faction = client:Team()
-            net.Start("OpenMemberModelMenu")
-            net.WriteUInt(faction, 32)
-            net.WriteEntity(target)
-            net.Send(client)
-        else
-            return "@notTeamOwner"
-        end
-    end
-})
-
 
 if SERVER then
     util.AddNetworkString("OpenMemberModelMenu")
